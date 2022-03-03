@@ -46,11 +46,44 @@ def smith_waterman(seq1, seq2, match, mismatch, gapopen, gapextend):
     max_score = 0
     alnseq1 = ""
     alnseq2 = ""
+    #provide values of match, mismatch, gapopen, and gapextend specified in class
 
+for i in len(seq1):
+  k = 0 #reset size of gap for each new row
+  for j in len(seq2):
+    if seq1[i] == seq2[j]:
+          score = match #match score
+        else:
+          score = mismatch #mismatch score
+    gap = gapopen + k*gapextend #gap score
+    M[i,j] = max(M[i-1,j]-gap, M[i-1,j-1]+score, M[i,j-1]-gap)
+    if M[i,j] == (M[i-1,j]-gap) or M[i,j] == (M[i,j-1]-gap):
+      k = k + 1 #we chose a gap, so size of gap increments by 1
+    else:
+      k = 0 #reset gap size if you have a match 
+
+  max_score = M[-1,-1] #max score is last entry in the matrix
+  # return aligned sequences by traceback
+  idx_i = -1 #starting points for the traceback algorithm
+  idx_j = -1
+  alnseq1[-1] = seq1[-1] #the final entry of the aligned seq is the final entry of the original seq
+  alnseq2[-1] = seq2[-1]
+
+for i in len(seq1):
+  for j in len(seq2):
+    chosen_direction = max(M[idx_i-i,idx_j-j],M[idx_i,idx_j-j],M[idx_i-i,idx_j]) #choose direction that gives you largest score
+    if chosen_direction == M[idx_i-i,idx_j-j]:
+      alnseq1[-i] = seq1[-i]
+      alnseq2[-j] = seq2[-j]
+    if chosen_direction == M[idx_i,idx_j-j]:
+      alnseq1[-i] = [] #insert a gap
+      alnseq2[-j] = seq2[-j]
+    if chosen_direction == M[idx_i-i,idx_j]:
+      alnseq1[-i] = seq1[-i]
+      alnseq2[-j] = [] #insert a gap
 
     return max_score, alnseq1, alnseq2
     
-
 def main(filename1, filename2, match, mismatch, gapopen, gapextend):
     # read the name and sequence from the file
     name1, seq1 = read_single_contig_fasta(filename1)
