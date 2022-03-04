@@ -13,6 +13,7 @@
 
 from sys import argv, stderr
 from getopt import getopt, GetoptError
+import numpy as np
 
 # a simple function to read the name and sequence from a file
 # The file is expected to have just one contig/sequence. This function
@@ -48,39 +49,70 @@ def smith_waterman(seq1, seq2, match, mismatch, gapopen, gapextend):
     alnseq2 = ""
     #provide values of match, mismatch, gapopen, and gapextend specified in class
 
-for i in len(seq1):
-  k = 0 #reset size of gap for each new row
-  for j in len(seq2):
-    if seq1[i] == seq2[j]:
-          score = match #match score
+#%%
+
+max_score = 0
+alnseq1 = ""
+alnseq2 = ""
+#provide values of match, mismatch, gapopen, and gapextend specified in class
+
+M = np.zeros((len(seq1) + 1, len(seq2) + 1), dtype=int).astype(float)
+
+M[range(1,len(seq1)+1),0] = np.ones(len(seq1), dtype=int).astype(float)*-1
+M[0,range(1,len(seq2)+1)] = np.ones(len(seq2), dtype=int).astype(float)*-1
+
+for i in range(1,len(seq1)+1):
+    k = 0 #reset size of gap for each new row
+    for j in range(1,len(seq2)+1):
+        if seq1[i-1] == seq2[j-1]:
+            score = match #match score
         else:
-          score = mismatch #mismatch score
-    gap = gapopen + k*gapextend #gap score
-    M[i,j] = max(M[i-1,j]-gap, M[i-1,j-1]+score, M[i,j-1]-gap)
-    if M[i,j] == (M[i-1,j]-gap) or M[i,j] == (M[i,j-1]-gap):
-      k = k + 1 #we chose a gap, so size of gap increments by 1
+            score = mismatch #mismatch score
+        gap = gapopen + k*gapextend #gap score
+        M[i,j] = max(0, M[i-1,j]-gap, M[i-1,j-1]+score, M[i,j-1]-gap)
+        if M[i,j] == (M[i-1,j]-gap) or M[i,j] == (M[i,j-1]-gap):
+            k = k + 1 #we chose a gap, so size of gap increments by 1
+        else:
+            k = 0 #reset gap size if you have a match 
+
+alnseq1 = ["*" for r in range(np.max([len(seq1),len(seq2)]))]
+alnseq2 = ["*" for r in range(np.max([len(seq1),len(seq2)]))]
+
+max_score = np.max(M) #max score is last entry in the matrix
+# return aligned sequences by traceback
+idx_i = np.argmax(np.argmax(M,axis=1)) #starting points for the traceback algorithm
+idx_j = np.argmax(np.argmax(M,axis=0))
+
+# %%
+i = idx_i
+j = idx_j
+while i>0 or j>0:
+  chosen_direction = max(M[i-1,j-1],M[i,j-1],M[i-1,j]) #choose direction that gives you largest score
+  if chosen_direction == M[i-1,j-1]:
+    if len(seq1)>len(seq2):
+      alnseq1[i-1] = seq1[i-1]
+      alnseq2[i-1] = seq2[j-1]
     else:
-      k = 0 #reset gap size if you have a match 
-
-  max_score = M[-1,-1] #max score is last entry in the matrix
-  # return aligned sequences by traceback
-  idx_i = -1 #starting points for the traceback algorithm
-  idx_j = -1
-  alnseq1[-1] = seq1[-1] #the final entry of the aligned seq is the final entry of the original seq
-  alnseq2[-1] = seq2[-1]
-
-for i in len(seq1):
-  for j in len(seq2):
-    chosen_direction = max(M[idx_i-i,idx_j-j],M[idx_i,idx_j-j],M[idx_i-i,idx_j]) #choose direction that gives you largest score
-    if chosen_direction == M[idx_i-i,idx_j-j]:
-      alnseq1[-i] = seq1[-i]
-      alnseq2[-j] = seq2[-j]
-    if chosen_direction == M[idx_i,idx_j-j]:
-      alnseq1[-i] = [] #insert a gap
-      alnseq2[-j] = seq2[-j]
-    if chosen_direction == M[idx_i-i,idx_j]:
-      alnseq1[-i] = seq1[-i]
-      alnseq2[-j] = [] #insert a gap
+      alnseq1[j-1] = seq1[i-1]
+      alnseq2[j-1] = seq2[j-1]
+    i = i-1
+    j = j-1
+  if chosen_direction == M[i,j-1]:
+    if len(seq1)>len(seq2):
+      alnseq1[i-1] = ["-"] #insert a gap
+      alnseq2[i-1] = seq2[j-1]
+    else:
+      alnseq1[j-1] = ["-"] #insert a gap
+      alnseq2[j-1] = seq2[j-1]      
+    j = j-1
+  if chosen_direction == M[i-1,j]:
+    if len(seq1)>len(seq2):
+      alnseq1[i-1] = seq1[i-1]
+      alnseq2[i-1] = ["-"] #insert a gap
+    else:
+      alnseq1[j-1] = seq1[i-1]
+      alnseq2[j-1] = ["-"] #insert a gap
+    i = i-1
 
     return max_score, alnseq1, alnseq2
     
